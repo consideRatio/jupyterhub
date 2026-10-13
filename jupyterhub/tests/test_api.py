@@ -1702,16 +1702,22 @@ async def test_active_server_limit(app, request):
 async def test_start_stop_race(app, no_patience, slow_spawn):
     user = add_user(app.db, app, name='panda')
     spawner = user.spawner
-    # start the server
-    r = await api_request(app, 'users', user.name, 'server', method='post')
-    assert r.status_code == 202
-    assert spawner.pending == 'spawn'
-    spawn_future = spawner._spawn_future
-    # additional spawns while spawning shouldn't trigger a new spawn
-    with mock.patch.object(spawner, 'start') as m:
+    with mock.patch.object(spawner, 'start', wraps=spawner.start) as m:
+        # start the server
         r = await api_request(app, 'users', user.name, 'server', method='post')
-    assert r.status_code == 202
-    assert m.call_count == 0
+        assert r.status_code == 202
+        assert spawner.pending == 'spawn'
+        spawn_future = spawner._spawn_future
+        # the request can return before the spawn has called start
+        for _ in range(100):
+            if m.call_count:
+                break
+            await asyncio.sleep(0.1)
+        assert m.call_count == 1
+        # additional spawns while spawning shouldn't trigger a new spawn
+        r = await api_request(app, 'users', user.name, 'server', method='post')
+        assert r.status_code == 202
+    assert m.call_count == 1
 
     # stop while spawning is okay now
     spawner.delay = 3
