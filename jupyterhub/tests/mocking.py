@@ -43,8 +43,25 @@ from .. import metrics, orm, roles
 from ..app import JupyterHub
 from ..auth import PAMAuthenticator
 from ..spawner import SimpleLocalProcessSpawner, SpawnException
-from ..utils import random_port, url_path_join, utcnow
+from ..utils import random_port as _random_port
+from ..utils import url_path_join, utcnow
 from .utils import AsyncSession, public_url, ssl_setup
+
+_used_ports = set()
+
+
+def random_port():
+    """random_port that doesn't return the same port twice
+
+    Ports picked together (e.g. proxy public and api ports)
+    can otherwise collide, since each port is released immediately.
+    """
+    for _ in range(100):
+        port = _random_port()
+        if port not in _used_ports:
+            break
+    _used_ports.add(port)
+    return port
 
 
 def mock_authenticate(username, password, service, encoding):
