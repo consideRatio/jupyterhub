@@ -1538,6 +1538,9 @@ async def test_progress_bad_slow(request, app, no_patience, slow_bad_spawn):
     db = app.db
     name = 'eugene'
     app_user = add_user(db, app=app, name=name)
+    # don't fail the spawn until progress has been watched
+    fail_spawn = app_user.spawner._start_future = asyncio.Future()
+    request.addfinalizer(lambda: fail_spawn.done() or fail_spawn.set_result(None))
     r = await api_request(app, 'users', name, 'server', method='post')
     assert r.status_code == 202
     r = await api_request(app, 'users', name, 'server/progress', stream=True)
@@ -1550,6 +1553,7 @@ async def test_progress_bad_slow(request, app, no_patience, slow_bad_spawn):
     assert evt['progress'] == 0
     evt = await ex.submit(next_event, line_iter)
     assert evt['progress'] == 50
+    fail_spawn.set_result(None)
     evt = await ex.submit(next_event, line_iter)
     assert evt == {
         'progress': 100,

@@ -160,8 +160,13 @@ class CustomBadSpawner(MockSpawner):
 class SlowBadSpawner(MockSpawner):
     """Spawner that fails after a short delay"""
 
+    _start_future = None
+
     async def start(self):
-        await asyncio.sleep(0.5)
+        if self._start_future is not None:
+            await self._start_future
+        else:
+            await asyncio.sleep(0.5)
         raise RuntimeError("I don't work!")
 
 
