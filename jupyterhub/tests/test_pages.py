@@ -728,9 +728,11 @@ async def test_login_fail(app):
     login_url = base_url + 'hub/login'
     r = await async_requests.get(login_url)
     r.raise_for_status()
-    xsrf = r.cookies['_xsrf']
     r = await async_requests.get(login_url)
     assert set(r.cookies.keys()).issubset({"_xsrf"})
+    # xsrf must come from the same response as the cookies we send,
+    # since the signed token changes when the timestamp's second changes
+    xsrf = r.cookies['_xsrf']
     r = await async_requests.post(
         login_url,
         data={'username': name, 'password': 'wrong', '_xsrf': xsrf},
