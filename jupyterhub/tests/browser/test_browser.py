@@ -20,6 +20,16 @@ from jupyterhub.utils import url_escape_path, url_path_join
 pytestmark = pytest.mark.browser
 
 
+async def wait_for_page_js(browser):
+    """Wait for the page's javascript to finish loading
+
+    Pages using requirejs register their event handlers in a callback
+    that can run after the 'load' event, so clicking before this
+    may submit forms natively or do nothing at all.
+    """
+    await browser.wait_for_function("window._jupyterhub_page_loaded")
+
+
 async def login(browser, username, password=None):
     """filling the login form by user and pass_w parameters and initiate the login"""
     if password is None:
@@ -61,6 +71,7 @@ async def login_home(browser, app, username):
         url=re.compile(".*/hub/home"), wait_until="domcontentloaded"
     ):
         await login(browser, username)
+    await wait_for_page_js(browser)
 
 
 async def test_open_login_page(app, browser):
@@ -246,6 +257,7 @@ async def open_spawn_pending(app, browser, user_special_chars):
     )
     await browser.goto(url_spawn, wait_until="domcontentloaded")
     await expect(browser).to_have_url(url_spawn)
+    await wait_for_page_js(browser)
 
 
 async def test_spawn_pending_server_not_started(
@@ -551,6 +563,7 @@ async def open_token_page(app, browser, user):
     token_page = url_path_join(public_url(app), "hub/token")
     await login_home(browser, app, user.name)
     await browser.goto(token_page, wait_until="domcontentloaded")
+    await wait_for_page_js(browser)
 
 
 @pytest.mark.parametrize(
@@ -693,6 +706,7 @@ async def test_request_token_expiration(
             await browser.locator("#start").click()
         token_page = url_path_join(public_host(app), app.base_url, '/hub/token')
         await browser.goto(token_page)
+        await wait_for_page_js(browser)
     else:
         # open the token page
         await open_token_page(app, browser, user)
@@ -867,8 +881,8 @@ async def test_revoke_token(app, browser, token_type, user_special_chars):
     # open the token page
     next_url = url_path_join(public_host(app), app.base_url, '/hub/token')
     await browser.goto(next_url)
-    await browser.wait_for_load_state("load")
     await expect(browser).to_have_url(re.compile(".*/hub/token"))
+    await wait_for_page_js(browser)
     if token_type == "both" or token_type == "request_by_user":
         request_btn = browser.locator('//button[@type="submit"]')
         await request_btn.click()
@@ -878,6 +892,7 @@ async def test_revoke_token(app, browser, token_type, user_special_chars):
         await expect(token_result).to_be_visible()
         # reload the page
         await browser.reload(wait_until="load")
+        await wait_for_page_js(browser)
 
     revoke_btns = browser.get_by_role("button", name="revoke")
 
