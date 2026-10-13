@@ -1333,7 +1333,8 @@ async def test_share_codes_api_revoke(
 
     url = f"/share-codes/{user.name}/"
     if delete_by:
-        query = delete_by.replace("CODE", code).replace("ID", f"sc_{share_code.id}")
+        # replace ID before CODE, since the random code may contain "ID"
+        query = delete_by.replace("ID", f"sc_{share_code.id}").replace("CODE", code)
         url = f"{url}?{query}"
 
     r = await api_request(
